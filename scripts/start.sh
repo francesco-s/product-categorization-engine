@@ -7,7 +7,7 @@ echo "Starting Product Categorization API"
 
 # Set default environment variables if not already set
 export MODEL_PATH=${MODEL_PATH:-/app/data/models/best_model.pt}
-export LOG_LEVEL=${LOG_LEVEL:-INFO}
+export LOG_LEVEL=${LOG_LEVEL:-info}
 export PORT=${PORT:-8000}
 export HOST=${HOST:-0.0.0.0}
 export WORKERS=${WORKERS:-1}

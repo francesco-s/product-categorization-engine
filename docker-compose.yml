@@ -11,8 +11,8 @@ services:
       - ./data:/app/data
     environment:
       - ENVIRONMENT=production
-      - LOG_LEVEL=INFO
-      - MODEL_PATH=/app/data/models/best_model.pt
+      - LOG_LEVEL=info
+      - MODEL_PATH=/app/data/models/checkpoints/best_model.pt
     deploy:
       resources:
         limits:

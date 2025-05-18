@@ -21,7 +21,7 @@ RUN chmod +x /app/scripts/start.sh
 
 # Set environment variables
 ENV PYTHONPATH=/app
-ENV MODEL_PATH=/app/data/models/best_model.pt
+ENV MODEL_PATH=/app/data/models/checkpoints/best_model.pt
 
 # Expose API port
 EXPOSE 8000
