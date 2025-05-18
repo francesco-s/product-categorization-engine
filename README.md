@@ -38,90 +38,39 @@ python scripts/train.py --model_type distilbert --batch_size 16 --num_epochs 3
 uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-## Project Structure
-
-```
-product-categorization/
-├── README.md                    # Project documentation
-├── requirements.txt             # Dependencies
-├── setup.py                     # Package installation
-├── Dockerfile                   # Container definition
-├── docker-compose.yml           # Services definition
-├── docs/                        # Extended documentation
-│   ├── design.md                # Design decisions, architecture
-│   ├── data_analysis.md         # Data analysis findings
-│   └── evaluation.md            # Model evaluation results
-├── notebooks/                   # Jupyter notebooks for exploration
-├── data/                        # Data directory
-│   ├── raw/                     # Raw data
-│   ├── processed/               # Processed data
-│   └── models/                  # Saved models
-├── src/                         # Source code
-│   ├── config.py                # Configuration
-│   ├── data/                    # Data processing modules
-│   ├── models/                  # Model definitions
-│   ├── training/                # Training logic
-│   ├── utils/                   # Utility functions
-│   └── api/                     # API module
-├── scripts/                     # Utility scripts
-│   ├── download_data.py         # Data download script
-│   ├── download_nltk_data.py    # NLTK resources download
-│   ├── train.py                 # Training script
-│   ├── evaluate.py              # Evaluation script
-│   └── start.sh                 # API startup script
-├── configs/                     # Configuration files
-│   ├── training.yaml            # Training configuration
-│   └── evaluation.yaml          # Evaluation configuration
-├── monitoring/                  # Monitoring configuration
-└── tests/                       # Unit and integration tests
-```
-
-## Architecture
-
-This solution follows a modular architecture:
-
-1. **Data Processing Module**: Handles data loading, cleaning, preprocessing, and feature engineering
-2. **Model Module**: Implements transformer-based classifier fine-tuning using PyTorch
-3. **Training Module**: Manages the training and evaluation process
-4. **API Module**: Provides a REST interface for model inference
-
-## Design Patterns
-
-Several design patterns have been implemented:
-
-- **Factory Pattern**: For creating different model variants
-- **Strategy Pattern**: For different text processing strategies
-- **Repository Pattern**: For data access abstraction
-- **Singleton Pattern**: For model loading in the API
-
 ## Detailed Setup
 
 ### Prerequisites
 
 - Python 3.8+
 - Docker and Docker Compose (for containerized deployment)
-- 8GB+
+- 4GB+ RAM (8GB+ recommended for training)
 - NVIDIA GPU (optional, for faster training)
 
 ### Installation
 
-1. Create and activate a virtual environment:
+1. Move to the project root:
+   ```bash
+   cd smart-product-categorization-engine
+   ```
+
+2. Create and activate a virtual environment:
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
-2. Install dependencies:
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Download required NLTK resources:
+4. Download required NLTK resources:
    ```bash
    python scripts/download_nltk_data.py
    ```
 
-4. Create necessary directories:
+5. Create necessary directories:
    ```bash
    mkdir -p data/raw data/processed data/models/checkpoints results logs
    ```
@@ -204,16 +153,41 @@ For free GPU acceleration:
 
 ## Evaluation
 
-Evaluate model performance:
+### Standalone Evaluation (Without Training)
+
+You can evaluate a trained model without retraining using the standalone evaluation script:
 
 ```bash
+# Basic usage with default paths
 python scripts/evaluate_model.py
+
+# With custom paths
+python scripts/evaluate_model.py --model_path data/models/best_model.pt --test_file data/processed/test.csv
+
+# With specific batch size
+python scripts/evaluate_model.py --batch_size 16
 ```
 
-This generates:
-- Performance metrics (accuracy, F1 score, etc.)
+This script:
+- Loads a pre-trained model directly from a checkpoint
+- Evaluates it on test data
+- Generates comprehensive reports and visualizations
+
+### After Training
+
+If you've just trained a model, the evaluation metrics are also generated at the end of training:
+
+```bash
+python scripts/train.py
+```
+
+### Evaluation Outputs
+
+Both evaluation methods generate:
+- Performance metrics (accuracy, F1 score, precision, recall)
 - Confusion matrix visualization
 - Analysis of common misclassifications
+- Detailed JSON report in the results directory
 
 ## API Usage
 
@@ -226,6 +200,26 @@ uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 # Or using Docker
 docker-compose up -d
 ```
+
+### Category Mapping
+
+For the API to return meaningful category names instead of generic labels like "Category 0", there are two approaches:
+
+1. **Use the model's embedded category mapping** (default):
+   - During training, category mappings are saved in the model checkpoint
+   - The API automatically loads these mappings when available
+
+2. **Create an external category mapping file** (recommended):
+   - Useful if the model's mapping is missing or incomplete
+   - Creates a standalone mapping file that can be edited or extended
+   ```bash
+   # Generate category mapping from processed data
+   python scripts/create_category_mapping.py
+   
+   # The mapping will be saved to data/processed/category_mapping.json
+   ```
+   
+   This external mapping will be automatically loaded by the API if the model's internal mapping is missing.
 
 ### Making Predictions
 
@@ -267,6 +261,62 @@ result = response.json()
 print(f"Predicted category: {result['category']}")
 print(f"Confidence: {result['confidence']:.2f}")
 ```
+
+## Project Structure
+
+```
+smart-product-categorization-engine/
+├── README.md                    # Project documentation
+├── requirements.txt             # Dependencies
+├── setup.py                     # Package installation
+├── Dockerfile                   # Container definition
+├── docker-compose.yml           # Services definition
+├── docs/                        # Extended documentation
+│   ├── design.md                # Design decisions, architecture
+│   ├── data_analysis.md         # Data analysis findings
+│   └── evaluation.md            # Model evaluation results
+├── notebooks/                   # Jupyter notebooks for exploration
+├── data/                        # Data directory
+│   ├── raw/                     # Raw data
+│   ├── processed/               # Processed data
+│   └── models/                  # Saved models
+├── src/                         # Source code
+│   ├── config.py                # Configuration
+│   ├── data/                    # Data processing modules
+│   ├── models/                  # Model definitions
+│   ├── training/                # Training logic
+│   ├── utils/                   # Utility functions
+│   └── api/                     # API module
+├── scripts/                     # Utility scripts
+│   ├── download_data.py         # Data download script
+│   ├── download_nltk_data.py    # NLTK resources download
+│   ├── train.py                 # Training script
+│   ├── evaluate.py              # Evaluation script
+│   └── start.sh                 # API startup script
+├── configs/                     # Configuration files
+│   ├── training.yaml            # Training configuration
+│   └── evaluation.yaml          # Evaluation configuration
+├── monitoring/                  # Monitoring configuration
+└── tests/                       # Unit and integration tests
+```
+
+## Architecture
+
+This solution follows a modular architecture:
+
+1. **Data Processing Module**: Handles data loading, cleaning, preprocessing, and feature engineering
+2. **Model Module**: Implements transformer-based classifier fine-tuning using PyTorch
+3. **Training Module**: Manages the training and evaluation process
+4. **API Module**: Provides a REST interface for model inference
+
+## Design Patterns
+
+Several design patterns have been implemented:
+
+- **Factory Pattern**: For creating different model variants
+- **Strategy Pattern**: For different text processing strategies
+- **Repository Pattern**: For data access abstraction
+- **Singleton Pattern**: For model loading in the API
 
 ## Deployment
 
@@ -321,6 +371,45 @@ If you encounter CUDA errors:
 1. Verify CUDA is installed: `nvcc --version`
 2. Check PyTorch CUDA support: `python -c "import torch; print(torch.cuda.is_available())"`
 3. Install compatible PyTorch version: `pip install torch --index-url https://download.pytorch.org/whl/cu118`
+
+### Evaluation Issues
+
+If you encounter errors during evaluation:
+
+1. **Tuple index error**: Use the standalone evaluation script instead:
+   ```bash
+   python scripts/evaluate_model.py
+   ```
+
+2. **Missing columns in test data**: The standalone script automatically handles missing columns:
+   ```python
+   # It will create combined_text if missing
+   if 'combined_text' not in test_df.columns:
+       test_df['combined_text'] = test_df['name'] + ' ' + test_df['brand']
+   ```
+
+3. **Model loading errors**: Check that the model path is correct and the model was properly saved:
+   ```bash
+   python scripts/evaluate_model.py --model_path path/to/your/model.pt
+   ```
+
+### API Category Label Issues
+
+If the API returns generic labels like "Category 0" instead of meaningful names:
+
+1. **Create an external category mapping file**:
+   ```bash
+   python scripts/create_category_mapping.py
+   ```
+
+2. **Check logs for mapping information**:
+   ```bash
+   # Run the API with more verbose logging
+   uvicorn src.api.app_fixed:app --log-level debug
+   ```
+
+3. **See detailed documentation**: 
+   Review the [Category Mapping Documentation](docs/category-mapping.md) for more details
 
 ## Future Improvements
 

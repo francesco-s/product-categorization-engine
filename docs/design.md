@@ -1,10 +1,10 @@
-# Design Documentation: Product Categorization
+# Design Documentation: Smart Product Categorization
 
 This document outlines the design decisions, architecture, and trade-offs for a product categorization solution.
 
 ## 1. Problem Statement
 
-A client needs a machine learning solution that can automatically predict the correct category for a product based on its name and brand. The solution should be:
+ShopFully needs a machine learning solution that can automatically predict the correct category for a product based on its name and brand. The solution should be:
 
 - Accurate in classifying products across multiple categories
 - Accessible via a REST API
@@ -446,7 +446,35 @@ class ModelSingleton:
         return cls._instance
 ```
 
-### 6.3 Request/Response Models
+### 6.3 Category Mapping
+
+The API implements a flexible approach to category mapping:
+
+1. **Primary Method**: Load category mappings from the model checkpoint:
+   ```python
+   # Load id to label mapping
+   id_to_category = checkpoint.get('id_to_category', {})
+   ```
+
+2. **Fallback Method**: Load from an external JSON file:
+   ```python
+   # Try to load external category mapping if available
+   external_mapping_path = "data/processed/category_mapping.json"
+   if not id_to_category and os.path.exists(external_mapping_path):
+       with open(external_mapping_path, 'r') as f:
+           id_to_category = json.load(f)
+   ```
+
+3. **Last Resort**: Generate default category names:
+   ```python
+   # If still empty and we have num_classes, create default mapping
+   if not id_to_category and num_classes > 0:
+       id_to_category = {str(i): f"Category {i}" for i in range(num_classes)}
+   ```
+
+This approach ensures that the API can always provide meaningful category names, even if the model checkpoint does not contain the mappings.
+
+### 6.4 Request/Response Models
 
 Using Pydantic for request/response validation:
 

@@ -89,7 +89,7 @@ class ModelSingleton:
     _instance = None
 
     @classmethod
-    def get_instance(cls, model_path="./data/models/best_model.pt"):
+    def get_instance(cls, model_path="./data/models/checkpoints/best_model.pt"):
         if cls._instance is None:
             cls._instance = cls._load_model(model_path)
         return cls._instance
