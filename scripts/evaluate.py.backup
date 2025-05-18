@@ -1,0 +1,330 @@
+import os
+import sys
+import argparse
+import logging
+import json
+import yaml
+import pandas as pd
+import numpy as np
+import torch
+from transformers import AutoTokenizer
+from sklearn.metrics import classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Add parent directory to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from src.config import load_config
+from src.models.transformer_classifier import ModelFactory
+from src.data.dataset import ProductInferenceDataset
+from src.utils.text_utils import preprocess_text, extract_features
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('evaluation.log')
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description='Evaluate product categorization model')
+
+    parser.add_argument('--config', type=str, default='configs/evaluation.yaml',
+                        help='Path to configuration file')
+    parser.add_argument('--model_path', type=str, default='data/models/best_model.pt',
+                        help='Path to model checkpoint')
+    parser.add_argument('--test_file', type=str, default='data/processed/test.csv',
+                        help='Path to test data file')
+    parser.add_argument('--output_dir', type=str, default='results',
+                        help='Directory to save evaluation results')
+    parser.add_argument('--batch_size', type=int, default=32,
+                        help='Batch size for evaluation')
+
+    return parser.parse_args()
+
+
+def evaluate_model(model, test_loader, device, id_to_category):
+    """
+    Evaluate model on test data.
+
+    Args:
+        model: Trained model
+        test_loader: Test data loader
+        device: Device to use
+        id_to_category: Mapping from category IDs to category names
+
+    Returns:
+        dict: Evaluation results
+    """
+    model.eval()
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for batch in test_loader:
+            # Move batch to device
+            input_ids = batch['input_ids'].to(device)
+            attention_mask = batch['attention_mask'].to(device)
+            labels = batch['labels'].to(device)
+
+            # Get predictions
+            outputs = model(input_ids, attention_mask)
+            preds = torch.argmax(outputs, dim=1)
+
+            # Add to lists
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    # Convert to numpy arrays
+    all_preds = np.array(all_preds)
+    all_labels = np.array(all_labels)
+
+    # Get category names
+    pred_categories = [id_to_category.get(str(idx), f"Unknown_{idx}") for idx in all_preds]
+    true_categories = [id_to_category.get(str(idx), f"Unknown_{idx}") for idx in all_labels]
+
+    # Calculate metrics
+    report = classification_report(
+        all_labels,
+        all_preds,
+        target_names=[id_to_category.get(str(i), f"Class_{i}") for i in range(len(id_to_category))],
+        output_dict=True
+    )
+
+    # Get confusion matrix (for top categories)
+    cm = confusion_matrix(all_labels, all_preds)
+
+    return {
+        'classification_report': report,
+        'confusion_matrix': cm.tolist(),
+        'predictions': all_preds.tolist(),
+        'true_labels': all_labels.tolist(),
+        'pred_categories': pred_categories,
+        'true_categories': true_categories
+    }
+
+
+def analyze_misclassifications(results, test_df, id_to_category, max_samples=20):
+    """
+    Analyze misclassifications.
+
+    Args:
+        results: Evaluation results
+        test_df: Test dataframe
+        id_to_category: Mapping from category IDs to category names
+        max_samples: Maximum number of misclassification examples to include
+
+    Returns:
+        dict: Misclassification analysis
+    """
+    # Get indices of misclassifications
+    misclass_indices = np.where(np.array(results['predictions']) != np.array(results['true_labels']))[0]
+
+    # Get misclassification examples
+    misclass_examples = []
+
+    for idx in misclass_indices[:max_samples]:
+        example = {
+            'text': test_df.iloc[idx]['name'],
+            'brand': test_df.iloc[idx]['brand'],
+            'combined_text': test_df.iloc[idx]['combined_text'],
+            'true_category': results['true_categories'][idx],
+            'pred_category': results['pred_categories'][idx]
+        }
+        misclass_examples.append(example)
+
+    # Get most common misclassifications
+    misclass_pairs = []
+    for idx in misclass_indices:
+        true_cat = results['true_categories'][idx]
+        pred_cat = results['pred_categories'][idx]
+        misclass_pairs.append((true_cat, pred_cat))
+
+    from collections import Counter
+    common_misclass = Counter(misclass_pairs).most_common(10)
+
+    return {
+        'num_misclassifications': len(misclass_indices),
+        'misclassification_rate': len(misclass_indices) / len(results['predictions']),
+        'examples': misclass_examples,
+        'common_misclassifications': [
+            {
+                'true_category': pair[0][0],
+                'pred_category': pair[0][1],
+                'count': pair[1]
+            }
+            for pair in common_misclass
+        ]
+    }
+
+
+def plot_confusion_matrix(cm, classes, output_path):
+    """
+    Plot confusion matrix.
+
+    Args:
+        cm: Confusion matrix
+        classes: Class names
+        output_path: Path to save plot
+    """
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=classes, yticklabels=classes)
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title('Confusion Matrix')
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
+
+
+def main():
+    """Main evaluation function."""
+    # Parse arguments
+    args = parse_arguments()
+
+    # Load configuration
+    config = load_config(args.config)
+
+    # Create output directory
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    # Load model checkpoint
+    logger.info(f"Loading model from {args.model_path}")
+    try:
+        checkpoint = torch.load(args.model_path, map_location='cpu')
+        model_config = checkpoint.get('model_config', {})
+        id_to_category = checkpoint.get('id_to_category', {})
+    except Exception as e:
+        logger.error(f"Error loading model: {e}")
+        sys.exit(1)
+
+    # Create model
+    model_type = model_config.get('model_type', 'bert')
+    num_classes = model_config.get('num_classes', 0)
+
+    if num_classes == 0:
+        logger.error("Invalid model configuration: missing num_classes")
+        sys.exit(1)
+
+    logger.info(f"Creating model: {model_type} with {num_classes} classes")
+    model = ModelFactory.create_model(
+        model_type=model_type,
+        num_classes=num_classes
+    )
+
+    # Load model weights
+    model.load_state_dict(checkpoint['model_state_dict'])
+
+    # Set device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+
+    # Load test data
+    logger.info(f"Loading test data from {args.test_file}")
+    try:
+        test_df = pd.read_csv(args.test_file)
+        logger.info(f"Loaded test data with {len(test_df)} rows")
+    except Exception as e:
+        logger.error(f"Error loading test data: {e}")
+        sys.exit(1)
+
+    # Initialize tokenizer
+    model_name = model_config.get('model_name', 'bert-base-uncased')
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    # Create test dataset and data loader
+    from torch.utils.data import DataLoader
+    test_dataset = ProductInferenceDataset(
+        test_df['combined_text'],
+        tokenizer,
+        max_length=model_config.get('max_length', 128)
+    )
+
+    # Add labels to the dataset items
+    test_dataset_with_labels = []
+    for i in range(len(test_dataset)):
+        item = test_dataset[i]
+        item['labels'] = torch.tensor(test_df.iloc[i]['category_id'], dtype=torch.long)
+        test_dataset_with_labels.append(item)
+
+    # Create a custom dataset class for the combined dataset
+    from torch.utils.data import Dataset
+    class CombinedDataset(Dataset):
+        def __init__(self, items):
+            self.items = items
+
+        def __len__(self):
+            return len(self.items)
+
+        def __getitem__(self, idx):
+            return self.items[idx]
+
+    test_dataset_final = CombinedDataset(test_dataset_with_labels)
+
+    test_loader = DataLoader(
+        test_dataset_final,
+        batch_size=args.batch_size,
+        shuffle=False
+    )
+
+    # Evaluate model
+    logger.info("Evaluating model")
+    results = evaluate_model(model, test_loader, device, id_to_category)
+
+    # Analyze misclassifications
+    logger.info("Analyzing misclassifications")
+    misclass_analysis = analyze_misclassifications(results, test_df, id_to_category)
+
+    # Save results
+    results_path = os.path.join(args.output_dir, 'evaluation_results.json')
+    logger.info(f"Saving results to {results_path}")
+    with open(results_path, 'w') as f:
+        json.dump(
+            {
+                'metrics': results['classification_report'],
+                'misclassification_analysis': misclass_analysis
+            },
+            f,
+            indent=2
+        )
+
+    # Save confusion matrix plot
+    # Get top 20 categories by frequency
+    top_categories = test_df['category_id'].value_counts().nlargest(20).index
+    top_category_names = [id_to_category.get(str(idx), f"Class_{idx}") for idx in top_categories]
+
+    # Filter confusion matrix for top categories
+    cm = np.array(results['confusion_matrix'])
+    cm_top = cm[top_categories, :][:, top_categories]
+
+    # Plot and save
+    cm_path = os.path.join(args.output_dir, 'confusion_matrix.png')
+    plot_confusion_matrix(cm_top, top_category_names, cm_path)
+
+    # Print summary
+    logger.info(f"Evaluation completed with {len(test_df)} test samples")
+    logger.info(f"Overall accuracy: {results['classification_report']['accuracy']:.4f}")
+    logger.info(f"Macro F1-score: {results['classification_report']['macro avg']['f1-score']:.4f}")
+    logger.info(f"Weighted F1-score: {results['classification_report']['weighted avg']['f1-score']:.4f}")
+    logger.info(f"Misclassification rate: {misclass_analysis['misclassification_rate']:.4f}")
+
+    # List top 5 problematic category pairs
+    if misclass_analysis['common_misclassifications']:
+        logger.info("Top 5 most common misclassifications:")
+        for i, misclass in enumerate(misclass_analysis['common_misclassifications'][:5]):
+            logger.info(
+                f"  {i + 1}. {misclass['true_category']} -> {misclass['pred_category']} ({misclass['count']} occurrences)")
+
+    logger.info(f"Detailed results saved to {results_path}")
+    logger.info(f"Confusion matrix plot saved to {cm_path}")
+
+
+if __name__ == "__main__":
+    main()

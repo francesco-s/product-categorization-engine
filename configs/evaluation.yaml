@@ -1,0 +1,25 @@
+# configs/evaluation.yaml
+
+# Data configuration
+data:
+  processed_dir: "data/processed"
+  models_dir: "data/models"
+  test_file: "test.csv"
+
+# Model settings
+model:
+  model_path: "data/models/best_model.pt"
+
+# Evaluation settings
+evaluation:
+  batch_size: 32
+  output_dir: "results"
+  max_misclass_examples: 20
+  plot_confusion_matrix: true
+  plot_top_n_categories: 20
+
+# Logging settings
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_file: "evaluation.log"

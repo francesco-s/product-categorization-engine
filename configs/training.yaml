@@ -1,0 +1,47 @@
+# configs/training.yaml
+
+# Data configuration
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  models_dir: "data/models"
+  train_file: "train.csv"
+  val_file: "val.csv"
+  test_file: "test.csv"
+  amazon_products_file: "Amazon-Products.csv"
+
+# Preprocessing settings
+preprocessing:
+  max_length: 128
+  remove_stopwords: true
+  lowercase: true
+  remove_special_chars: true
+  lemmatize: true
+  test_size: 0.15
+  val_size: 0.15
+  random_state: 42
+
+# Model settings
+model:
+  model_type: "bert"  # Options: bert, roberta, distilbert
+  model_name: "bert-base-uncased"
+  dropout_rate: 0.1
+  # num_labels will be determined during preprocessing
+
+# Training settings
+training:
+  batch_size: 32
+  num_epochs: 5
+  learning_rate: 2e-5
+  weight_decay: 0.01
+  warmup_steps: 0
+  gradient_accumulation_steps: 1
+  max_grad_norm: 1.0
+  early_stopping_patience: 3
+  checkpoint_dir: "data/models/checkpoints"
+
+# Logging settings
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_dir: "logs"
