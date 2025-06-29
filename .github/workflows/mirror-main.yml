@@ -23,6 +23,7 @@ jobs:
           TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
           REPO: ${{ secrets.PUBLIC_REPO_SLUG }}
         run: |
-          REMOTE_URL="https://x-access-token:$TOKEN@github.com/$REPO.git"
+          REMOTE_URL="https://x-access-token:${TOKEN}@github.com/${REPO}.git"
+          echo "Remote URL is: $REMOTE_URL"
           git remote add public "$REMOTE_URL"
           git push --force public main:main
