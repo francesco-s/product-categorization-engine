@@ -1,0 +1,24 @@
+name: Mirror main to public repo
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+
+      - name: Push to public repo
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+          # Add public repo as remote
+          git remote add public "${{ secrets.PUBLIC_REPO_URL }}"
+
+          # Force push main to public
+          git push --force public main:main
