@@ -1,10 +1,14 @@
 # Smart Product Categorization
 
-A machine learning solution for automatically categorizing products based on their names and brands, delivered as a REST API. This system implements fine-tuning of transformer models (BERT/DistilBERT/RoBERTa) to accurately predict product categories.
+A machine learning solution for automatically categorizing products based on their names and brands, delivered as a REST API. This system implements fine-tuning of transformer models (BERT/DistilBERT/RoBERTa) to achieve high accuracy while maintaining reasonable inference times.
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/francesco-s/product-categorization-engine)
 
 ## Overview
 
 This project implements an end-to-end ML pipeline for product categorization in e-commerce. The solution fine-tunes transformer-based models on product data to achieve high accuracy while maintaining reasonable inference times.
+
+![High-Level Architecture](images/High-LevelComponentDiagram.png)
 
 ## Features
 
@@ -37,6 +41,41 @@ python scripts/train.py --model_type distilbert --batch_size 16 --num_epochs 3
 # 6. Start the API
 uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+## System Architecture
+
+### Training and Evaluation Workflow
+
+![Training and Evaluation Workflow](images/TrainingandEvaluationWorkflow.png)
+
+The training pipeline consists of several key stages:
+1. **Data Ingestion**: Raw product data is loaded and validated
+2. **Preprocessing**: Text cleaning, tokenization, and feature engineering
+3. **Model Training**: Fine-tuning transformer models with cross-validation
+4. **Evaluation**: Comprehensive performance assessment with multiple metrics
+5. **Model Persistence**: Saving trained models with metadata for inference
+
+### Inference Pipeline
+
+![Inference Workflow](images/InferenceWorkflow.png)
+
+The inference system provides real-time predictions through:
+1. **API Gateway**: RESTful endpoints for single and batch predictions
+2. **Model Loading**: Efficient model loading with caching mechanisms
+3. **Text Processing**: Same preprocessing pipeline as training
+4. **Prediction**: Fast inference with confidence scoring
+5. **Response Formatting**: Structured JSON responses with category mappings
+
+### Production Deployment
+
+![Production Deployment Stack](images/ProductionDeploymentStack.png)
+
+The production environment includes:
+- **Load Balancer**: Traffic distribution across multiple API instances
+- **Container Orchestration**: Docker containers with auto-scaling
+- **Model Registry**: Versioned model storage and management
+- **Monitoring Stack**: Prometheus metrics and Grafana dashboards
+- **Logging**: Centralized logging with ELK stack integration
 
 ## Detailed Setup
 
@@ -271,6 +310,11 @@ smart-product-categorization-engine/
 ├── setup.py                     # Package installation
 ├── Dockerfile                   # Container definition
 ├── docker-compose.yml           # Services definition
+├── images/                      # Architecture diagrams
+│   ├── High-LevelComponentDiagram.png
+│   ├── InferenceWorkflow.png
+│   ├── ProductionDeploymentStack.png
+│   └── TrainingandEvaluationWorkflow.png
 ├── docs/                        # Extended documentation
 │   ├── design.md                # Design decisions, architecture
 │   ├── data_analysis.md         # Data analysis findings
@@ -308,6 +352,8 @@ This solution follows a modular architecture:
 2. **Model Module**: Implements transformer-based classifier fine-tuning using PyTorch
 3. **Training Module**: Manages the training and evaluation process
 4. **API Module**: Provides a REST interface for model inference
+
+The architecture diagrams above illustrate how these components interact throughout the ML lifecycle, from data ingestion to production deployment.
 
 ## Design Patterns
 
