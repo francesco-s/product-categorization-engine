@@ -131,6 +131,123 @@ For faster training, you can use GPU acceleration if you have an NVIDIA GPU:
    print(f"CUDA available: {torch.cuda.is_available()}")
    ```
 
+## Alternative Approaches to Product Classification
+
+Though this project centers on transformer fine-tuning, there are various alternative strategies to consider:
+
+### Traditional Machine Learning
+
+#### TF-IDF + SVM / Random Forest  
+Converts text into sparse vectors based on term frequencies:
+
+```python
+# Example: "Samsung Galaxy S23 Ultra"
+# → [0.42, 0.00, 0.31, 0.78, ...]  # sparse vector representation
+```
+
+* Pros: Fast, interpretable
+* Cons: No understanding of word semantics (e.g., "smartphone" ≠ "mobile")
+
+#### Naive Bayes with N-grams
+
+Builds feature sets from contiguous word sequences:
+
+```python
+# Example: "Apple iPhone 15 Pro Max"
+# → ["Apple", "iPhone", "15", "Pro", "Max", "Apple_iPhone", "iPhone_15"]
+```
+
+* Pros: Simple and effective
+* Cons: No semantic awareness, fails on unseen n-grams
+
+#### XGBoost / LightGBM on Engineered Features
+
+Requires manual feature crafting:
+
+```python
+# Example features:
+# brand = Apple, title_length = 28, has_storage = True, contains_number = True
+```
+
+* Pros: Strong performance when domain knowledge is encoded
+* Cons: High maintenance, limited language understanding
+
+### Deep Learning Approaches
+
+#### CNN-Based Text Classifier
+
+Learns local n-gram patterns using convolutional filters:
+
+```python
+# Learns patterns like: "Pro Max", "Gaming Laptop", "Ultra HD"
+```
+
+* Pros: Lightweight and fast
+* Cons: Poor global context understanding
+
+#### LSTM / GRU (RNNs)
+
+Sequential models that process tokens one at a time:
+
+```python
+# "Samsung Galaxy S23 Ultra" → LSTM processes tokens in order
+```
+
+* Pros: Good at modeling order and context
+* Cons: Slower training, less efficient than transformers
+
+#### Static Word Embeddings + Classifier
+
+Uses pre-trained vectors like Word2Vec or GloVe:
+
+```python
+# "Samsung Galaxy S23" → average of word embeddings → fed into a classifier
+```
+
+* Pros: Fast and compact
+* Cons: No context-awareness (e.g., "Apple" as fruit vs brand)
+
+### Hybrid and Advanced Techniques
+
+#### Rule-Based + ML Combination
+
+Uses expert knowledge for known patterns, ML for the rest:
+
+```python
+if brand == "Apple" and "iPhone" in title:
+    category = "Electronics > Mobile Phones"
+else:
+    category = ML_model.predict(title)
+```
+
+* Pros: Highly interpretable and controlled
+* Cons: Hard to scale and maintain
+
+#### Multi-Modal Classification
+
+Combines product image and text features:
+
+```python
+# image_embedding = CNN(image)
+# text_embedding = BERT(description)
+# prediction = classifier(concat(image_embedding, text_embedding))
+```
+
+* Pros: Improves performance where text alone is ambiguous
+* Cons: Requires access to and preprocessing of images
+
+#### Graph-Based Methods
+
+Leverages relationships across product metadata:
+
+```python
+# Example: Graph with nodes → [Product] — [Brand] — [Category]
+# Node embeddings capture similarity across product families
+```
+
+* Pros: Effective for hierarchical taxonomies and relational data
+* Cons: Requires clean graph structure and advanced implementation
+
 ## Model Information
 
 This project implements fine-tuning of transformer models for text classification. Available models include:
