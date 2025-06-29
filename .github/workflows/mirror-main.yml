@@ -18,9 +18,11 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
 
-      - name: Push main to public repository
+      - name: Push to public repository
         env:
-          PUBLIC_REPO_URL: ${{ secrets.PUBLIC_REPO_URL }}
+          TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          REPO: ${{ secrets.PUBLIC_REPO_SLUG }}
         run: |
-          git remote add public "$PUBLIC_REPO_URL"
+          REMOTE_URL="https://x-access-token:$TOKEN@github.com/$REPO.git"
+          git remote add public "$REMOTE_URL"
           git push --force public main:main
