@@ -1,8 +1,8 @@
-# Smart Product Categorization
-
-A machine learning solution for automatically categorizing products based on their names and brands, delivered as a REST API. This system implements fine-tuning of transformer models (BERT/DistilBERT/RoBERTa) to achieve high accuracy while maintaining reasonable inference times.
+# Product Categorization Engine
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/francesco-s/product-categorization-engine)
+
+A machine learning solution for automatically categorizing products based on their names and brands, delivered as a REST API. This system implements fine-tuning of transformer models (BERT/DistilBERT/RoBERTa) to achieve high accuracy while maintaining reasonable inference times.
 
 ## Overview
 
